@@ -1,6 +1,6 @@
-name: Build Static HAProxy for Debian
+name: Build Static HAProxy for Debian  # 工作流名称
 
-on:
+on:  # 触发条件
   push:
     branches: [ main ]
   pull_request:
@@ -8,307 +8,308 @@ on:
   release:
     types: [ created ]
 
-# buster job：Debian 10
-build-buster:
-  runs-on: ubuntu-latest
-  container: debian:buster  # 使用 Debian 10 镜像
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+jobs:  # 新增：jobs 顶级键，包含所有 job
+  # buster job：Debian 10
+  build-buster:
+    runs-on: ubuntu-latest
+    container: debian:buster  # 使用 Debian 10 镜像
+    steps:
+    - name: Checkout repository  # 检出仓库代码
+      uses: actions/checkout@v4
 
-  - name: Configure archive repositories for buster
-    run: |
-      # 更新 sources.list 为归档源
-      cat > /etc/apt/sources.list << EOF
-      deb http://archive.debian.org/debian/ buster main contrib non-free
-      deb-src http://archive.debian.org/debian/ buster main contrib non-free
-      deb http://archive.debian.org/debian-security buster/updates main contrib non-free
-      deb-src http://archive.debian.org/debian-security buster/updates main contrib non-free
-      EOF
-      # 忽略 Release 文件的有效期检查（归档源不更新）
-      echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
-      # 更新 GPG 密钥（可选，但推荐避免签名警告）
-      apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true
+    - name: Configure archive repositories for buster  # 配置 buster 归档仓库
+      run: |
+        # 更新 sources.list 为归档源
+        cat > /etc/apt/sources.list << EOF
+        deb http://archive.debian.org/debian/ buster main contrib non-free
+        deb-src http://archive.debian.org/debian/ buster main contrib non-free
+        deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+        deb-src http://archive.debian.org/debian-security buster/updates main contrib non-free
+        EOF
+        # 忽略 Release 文件的有效期检查（归档源不更新）
+        echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
+        # 更新 GPG 密钥（可选，但推荐避免签名警告）
+        apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true
 
-  - name: Install build dependencies
-    run: |
-      apt-get update
-      apt-get install -y build-essential wget make tar perl
+    - name: Install build dependencies  # 安装构建依赖
+      run: |
+        apt-get update
+        apt-get install -y build-essential wget make tar perl
 
-  - name: Build Zlib (static)
-    run: |
-      ZLIB_VERSION=1.3.1
-      wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
-      tar xzf zlib-${ZLIB_VERSION}.tar.gz
-      cd zlib-${ZLIB_VERSION}
-      ./configure --prefix=/opt/zlib-static --static  # --static 确保只构建静态库
-      make -j$(nproc)
-      make install  # 确保 libz.a 安装
-      cd ..
+    - name: Build Zlib (static)  # 静态构建 Zlib
+      run: |
+        ZLIB_VERSION=1.3.1
+        wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+        tar xzf zlib-${ZLIB_VERSION}.tar.gz
+        cd zlib-${ZLIB_VERSION}
+        ./configure --prefix=/opt/zlib-static --static  # --static 确保只构建静态库
+        make -j$(nproc)
+        make install  # 确保 libz.a 安装
+        cd ..
 
-  - name: Build OpenSSL (static)
-    run: |
-      OPENSSL_VERSION=3.0.15
-      wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
-      tar xzf openssl-${OPENSSL_VERSION}.tar.gz
-      cd openssl-${OPENSSL_VERSION}
-      mkdir -p /opt/openssl-static
-      ./config --prefix=/opt/openssl-static no-shared no-doc no-html  # no-doc no-html，跳过文档生成，避免 perl 慢构建
-      make -j$(nproc --ignore=2)  # 减速并行，留 2 核
-      make install  # 确保 libssl.a 和 libcrypto.a 安装
-      cd ..
+    - name: Build OpenSSL (static)  # 静态构建 OpenSSL
+      run: |
+        OPENSSL_VERSION=3.0.15
+        wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+        tar xzf openssl-${OPENSSL_VERSION}.tar.gz
+        cd openssl-${OPENSSL_VERSION}
+        mkdir -p /opt/openssl-static
+        ./config --prefix=/opt/openssl-static no-shared no-doc no-html  # no-doc no-html，跳过文档生成，避免 perl 慢构建
+        make -j$(nproc --ignore=2)  # 减速并行，留 2 核
+        make install  # 确保 libssl.a 和 libcrypto.a 安装
+        cd ..
 
-  - name: Build PCRE2 (static)
-    run: |
-      PCRE2_VERSION=10.45
-      wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
-      tar xzf pcre2-${PCRE2_VERSION}.tar.gz
-      cd pcre2-${PCRE2_VERSION}
-      ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
-      make -j$(nproc --ignore=2)  # 减速并行
-      make install
-      cd ..
+    - name: Build PCRE2 (static)  # 静态构建 PCRE2
+      run: |
+        PCRE2_VERSION=10.45
+        wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
+        tar xzf pcre2-${PCRE2_VERSION}.tar.gz
+        cd pcre2-${PCRE2_VERSION}
+        ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
+        make -j$(nproc --ignore=2)  # 减速并行
+        make install
+        cd ..
 
-  - name: Build HAProxy (static)
-    run: |
-      HAPROXY_VERSION=3.2.1
-      wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
-      tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
-      cd haproxy-${HAPROXY_VERSION}
-      # 设置环境变量 LDFLAGS，避免 make 解析错误
-      export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
-      export CC="gcc"  # 针对 buster，确保使用系统 gcc
-      make TARGET=linux-glibc \
-           USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
-           USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
-           USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
-           USE_THREAD=1 \
-           LDFLAGS="$LDFLAGS" \  # 通过环境传递
-           -j$(nproc --ignore=2)  # 减速并行
-      cd ..
+    - name: Build HAProxy (static)  # 静态构建 HAProxy
+      run: |
+        HAPROXY_VERSION=3.2.1
+        wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
+        tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
+        cd haproxy-${HAPROXY_VERSION}
+        # 设置环境变量 LDFLAGS，避免 make 解析错误
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
+        export CC="gcc"  # 针对 buster，确保使用系统 gcc
+        make TARGET=linux-glibc \
+             USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
+             USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
+             USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
+             USE_THREAD=1 \
+             LDFLAGS="$LDFLAGS" \  # 通过环境传递
+             -j$(nproc --ignore=2)  # 减速并行
+        cd ..
 
-  - name: Prepare and upload binary artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: haproxy-static-buster
-      path: haproxy-3.2.1/haproxy
-      retention-days: 30
+    - name: Prepare and upload binary artifact  # 上传二进制 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: haproxy-static-buster
+        path: haproxy-3.2.1/haproxy
+        retention-days: 30
 
-# bullseye job：Debian 11，依赖 buster 成功
-build-bullseye:
-  runs-on: ubuntu-latest
-  needs: build-buster  # 依赖 buster
-  if: needs.build-buster.result == 'success'  # 仅前一个成功时执行
-  container: debian:bullseye  # 使用 Debian 11 镜像
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+  # bullseye job：Debian 11，依赖 buster 成功
+  build-bullseye:
+    runs-on: ubuntu-latest
+    needs: build-buster  # 依赖 buster
+    if: needs.build-buster.result == 'success'  # 仅前一个成功时执行
+    container: debian:bullseye  # 使用 Debian 11 镜像
+    steps:
+    - name: Checkout repository  # 检出仓库代码
+      uses: actions/checkout@v4
 
-  - name: Install build dependencies
-    run: |
-      apt-get update
-      apt-get install -y build-essential wget make tar perl
+    - name: Install build dependencies  # 安装构建依赖
+      run: |
+        apt-get update
+        apt-get install -y build-essential wget make tar perl
 
-  - name: Build Zlib (static)
-    run: |
-      ZLIB_VERSION=1.3.1
-      wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
-      tar xzf zlib-${ZLIB_VERSION}.tar.gz
-      cd zlib-${ZLIB_VERSION}
-      ./configure --prefix=/opt/zlib-static --static
-      make -j$(nproc)
-      make install
-      cd ..
+    - name: Build Zlib (static)  # 静态构建 Zlib
+      run: |
+        ZLIB_VERSION=1.3.1
+        wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+        tar xzf zlib-${ZLIB_VERSION}.tar.gz
+        cd zlib-${ZLIB_VERSION}
+        ./configure --prefix=/opt/zlib-static --static
+        make -j$(nproc)
+        make install
+        cd ..
 
-  - name: Build OpenSSL (static)
-    run: |
-      OPENSSL_VERSION=3.0.15
-      wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
-      tar xzf openssl-${OPENSSL_VERSION}.tar.gz
-      cd openssl-${OPENSSL_VERSION}
-      mkdir -p /opt/openssl-static
-      ./config --prefix=/opt/openssl-static no-shared no-doc no-html
-      make -j$(nproc --ignore=2)
-      make install
-      cd ..
+    - name: Build OpenSSL (static)  # 静态构建 OpenSSL
+      run: |
+        OPENSSL_VERSION=3.0.15
+        wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+        tar xzf openssl-${OPENSSL_VERSION}.tar.gz
+        cd openssl-${OPENSSL_VERSION}
+        mkdir -p /opt/openssl-static
+        ./config --prefix=/opt/openssl-static no-shared no-doc no-html
+        make -j$(nproc --ignore=2)
+        make install
+        cd ..
 
-  - name: Build PCRE2 (static)
-    run: |
-      PCRE2_VERSION=10.45
-      wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
-      tar xzf pcre2-${PCRE2_VERSION}.tar.gz
-      cd pcre2-${PCRE2_VERSION}
-      ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
-      make -j$(nproc --ignore=2)
-      make install
-      cd ..
+    - name: Build PCRE2 (static)  # 静态构建 PCRE2
+      run: |
+        PCRE2_VERSION=10.45
+        wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
+        tar xzf pcre2-${PCRE2_VERSION}.tar.gz
+        cd pcre2-${PCRE2_VERSION}
+        ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
+        make -j$(nproc --ignore=2)
+        make install
+        cd ..
 
-  - name: Build HAProxy (static)
-    run: |
-      HAPROXY_VERSION=3.2.1
-      wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
-      tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
-      cd haproxy-${HAPROXY_VERSION}
-      export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
-      export CC="gcc"
-      make TARGET=linux-glibc \
-           USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
-           USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
-           USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
-           USE_THREAD=1 \
-           LDFLAGS="$LDFLAGS" \
-           -j$(nproc --ignore=2)
-      cd ..
+    - name: Build HAProxy (static)  # 静态构建 HAProxy
+      run: |
+        HAPROXY_VERSION=3.2.1
+        wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
+        tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
+        cd haproxy-${HAPROXY_VERSION}
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
+        export CC="gcc"
+        make TARGET=linux-glibc \
+             USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
+             USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
+             USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
+             USE_THREAD=1 \
+             LDFLAGS="$LDFLAGS" \
+             -j$(nproc --ignore=2)
+        cd ..
 
-  - name: Prepare and upload binary artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: haproxy-static-bullseye
-      path: haproxy-3.2.1/haproxy
-      retention-days: 30
+    - name: Prepare and upload binary artifact  # 上传二进制 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: haproxy-static-bullseye
+        path: haproxy-3.2.1/haproxy
+        retention-days: 30
 
-# bookworm job：Debian 12，依赖 bullseye 成功
-build-bookworm:
-  runs-on: ubuntu-latest
-  needs: build-bullseye  # 依赖 bullseye
-  if: needs.build-bullseye.result == 'success'  # 仅前一个成功时执行
-  container: debian:bookworm  # 使用 Debian 12 镜像
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+  # bookworm job：Debian 12，依赖 bullseye 成功
+  build-bookworm:
+    runs-on: ubuntu-latest
+    needs: build-bullseye  # 依赖 bullseye
+    if: needs.build-bullseye.result == 'success'  # 仅前一个成功时执行
+    container: debian:bookworm  # 使用 Debian 12 镜像
+    steps:
+    - name: Checkout repository  # 检出仓库代码
+      uses: actions/checkout@v4
 
-  - name: Install build dependencies
-    run: |
-      apt-get update
-      apt-get install -y build-essential wget make tar perl
+    - name: Install build dependencies  # 安装构建依赖
+      run: |
+        apt-get update
+        apt-get install -y build-essential wget make tar perl
 
-  - name: Build Zlib (static)
-    run: |
-      ZLIB_VERSION=1.3.1
-      wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
-      tar xzf zlib-${ZLIB_VERSION}.tar.gz
-      cd zlib-${ZLIB_VERSION}
-      ./configure --prefix=/opt/zlib-static --static
-      make -j$(nproc)
-      make install
-      cd ..
+    - name: Build Zlib (static)  # 静态构建 Zlib
+      run: |
+        ZLIB_VERSION=1.3.1
+        wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+        tar xzf zlib-${ZLIB_VERSION}.tar.gz
+        cd zlib-${ZLIB_VERSION}
+        ./configure --prefix=/opt/zlib-static --static
+        make -j$(nproc)
+        make install
+        cd ..
 
-  - name: Build OpenSSL (static)
-    run: |
-      OPENSSL_VERSION=3.0.15
-      wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
-      tar xzf openssl-${OPENSSL_VERSION}.tar.gz
-      cd openssl-${OPENSSL_VERSION}
-      mkdir -p /opt/openssl-static
-      ./config --prefix=/opt/openssl-static no-shared no-doc no-html
-      make -j$(nproc --ignore=2)
-      make install
-      cd ..
+    - name: Build OpenSSL (static)  # 静态构建 OpenSSL
+      run: |
+        OPENSSL_VERSION=3.0.15
+        wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+        tar xzf openssl-${OPENSSL_VERSION}.tar.gz
+        cd openssl-${OPENSSL_VERSION}
+        mkdir -p /opt/openssl-static
+        ./config --prefix=/opt/openssl-static no-shared no-doc no-html
+        make -j$(nproc --ignore=2)
+        make install
+        cd ..
 
-  - name: Build PCRE2 (static)
-    run: |
-      PCRE2_VERSION=10.45
-      wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
-      tar xzf pcre2-${PCRE2_VERSION}.tar.gz
-      cd pcre2-${PCRE2_VERSION}
-      ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
-      make -j$(nproc --ignore=2)
-      make install
-      cd ..
+    - name: Build PCRE2 (static)  # 静态构建 PCRE2
+      run: |
+        PCRE2_VERSION=10.45
+        wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
+        tar xzf pcre2-${PCRE2_VERSION}.tar.gz
+        cd pcre2-${PCRE2_VERSION}
+        ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
+        make -j$(nproc --ignore=2)
+        make install
+        cd ..
 
-  - name: Build HAProxy (static)
-    run: |
-      HAPROXY_VERSION=3.2.1
-      wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
-      tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
-      cd haproxy-${HAPROXY_VERSION}
-      export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
-      export CC="gcc"
-      make TARGET=linux-glibc \
-           USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
-           USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
-           USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
-           USE_THREAD=1 \
-           LDFLAGS="$LDFLAGS" \
-           -j$(nproc --ignore=2)
-      cd ..
+    - name: Build HAProxy (static)  # 静态构建 HAProxy
+      run: |
+        HAPROXY_VERSION=3.2.1
+        wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
+        tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
+        cd haproxy-${HAPROXY_VERSION}
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
+        export CC="gcc"
+        make TARGET=linux-glibc \
+             USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
+             USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
+             USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
+             USE_THREAD=1 \
+             LDFLAGS="$LDFLAGS" \
+             -j$(nproc --ignore=2)
+        cd ..
 
-  - name: Prepare and upload binary artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: haproxy-static-bookworm
-      path: haproxy-3.2.1/haproxy
-      retention-days: 30
+    - name: Prepare and upload binary artifact  # 上传二进制 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: haproxy-static-bookworm
+        path: haproxy-3.2.1/haproxy
+        retention-days: 30
 
-# trixie job：Debian 13，依赖 bookworm 成功
-build-trixie:
-  runs-on: ubuntu-latest
-  needs: build-bookworm  # 依赖 bookworm
-  if: needs.build-bookworm.result == 'success'  # 仅前一个成功时执行
-  container: debian:trixie  # 使用 Debian 13 镜像
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+  # trixie job：Debian 13，依赖 bookworm 成功
+  build-trixie:
+    runs-on: ubuntu-latest
+    needs: build-bookworm  # 依赖 bookworm
+    if: needs.build-bookworm.result == 'success'  # 仅前一个成功时执行
+    container: debian:trixie  # 使用 Debian 13 镜像
+    steps:
+    - name: Checkout repository  # 检出仓库代码
+      uses: actions/checkout@v4
 
-  - name: Install build dependencies
-    run: |
-      apt-get update
-      apt-get install -y build-essential wget make tar perl
+    - name: Install build dependencies  # 安装构建依赖
+      run: |
+        apt-get update
+        apt-get install -y build-essential wget make tar perl
 
-  - name: Build Zlib (static)
-    run: |
-      ZLIB_VERSION=1.3.1
-      wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
-      tar xzf zlib-${ZLIB_VERSION}.tar.gz
-      cd zlib-${ZLIB_VERSION}
-      ./configure --prefix=/opt/zlib-static --static
-      make -j$(nproc)
-      make install
-      cd ..
+    - name: Build Zlib (static)  # 静态构建 Zlib
+      run: |
+        ZLIB_VERSION=1.3.1
+        wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+        tar xzf zlib-${ZLIB_VERSION}.tar.gz
+        cd zlib-${ZLIB_VERSION}
+        ./configure --prefix=/opt/zlib-static --static
+        make -j$(nproc)
+        make install
+        cd ..
 
-  - name: Build OpenSSL (static)
-    run: |
-      OPENSSL_VERSION=3.0.15
-      wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
-      tar xzf openssl-${OPENSSL_VERSION}.tar.gz
-      cd openssl-${OPENSSL_VERSION}
-      mkdir -p /opt/openssl-static
-      ./config --prefix=/opt/openssl-static no-shared no-doc no-html
-      make -j$(nproc --ignore=2)
-      make install
-      cd ..
+    - name: Build OpenSSL (static)  # 静态构建 OpenSSL
+      run: |
+        OPENSSL_VERSION=3.0.15
+        wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+        tar xzf openssl-${OPENSSL_VERSION}.tar.gz
+        cd openssl-${OPENSSL_VERSION}
+        mkdir -p /opt/openssl-static
+        ./config --prefix=/opt/openssl-static no-shared no-doc no-html
+        make -j$(nproc --ignore=2)
+        make install
+        cd ..
 
-  - name: Build PCRE2 (static)
-    run: |
-      PCRE2_VERSION=10.45
-      wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
-      tar xzf pcre2-${PCRE2_VERSION}.tar.gz
-      cd pcre2-${PCRE2_VERSION}
-      ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
-      make -j$(nproc --ignore=2)
-      make install
-      cd ..
+    - name: Build PCRE2 (static)  # 静态构建 PCRE2
+      run: |
+        PCRE2_VERSION=10.45
+        wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
+        tar xzf pcre2-${PCRE2_VERSION}.tar.gz
+        cd pcre2-${PCRE2_VERSION}
+        ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
+        make -j$(nproc --ignore=2)
+        make install
+        cd ..
 
-  - name: Build HAProxy (static)
-    run: |
-      HAPROXY_VERSION=3.2.1
-      wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
-      tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
-      cd haproxy-${HAPROXY_VERSION}
-      export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
-      export CC="gcc"
-      make TARGET=linux-glibc \
-           USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
-           USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
-           USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
-           USE_THREAD=1 \
-           LDFLAGS="$LDFLAGS" \
-           -j$(nproc --ignore=2)
-      cd ..
+    - name: Build HAProxy (static)  # 静态构建 HAProxy
+      run: |
+        HAPROXY_VERSION=3.2.1
+        wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
+        tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
+        cd haproxy-${HAPROXY_VERSION}
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
+        export CC="gcc"
+        make TARGET=linux-glibc \
+             USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
+             USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
+             USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
+             USE_THREAD=1 \
+             LDFLAGS="$LDFLAGS" \
+             -j$(nproc --ignore=2)
+        cd ..
 
-  - name: Prepare and upload binary artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: haproxy-static-trixie
-      path: haproxy-3.2.1/haproxy
-      retention-days: 30
+    - name: Prepare and upload binary artifact  # 上传二进制 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: haproxy-static-trixie
+        path: haproxy-3.2.1/haproxy
+        retention-days: 30
