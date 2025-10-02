@@ -47,9 +47,9 @@ jobs:  # jobs 顶级键，包含所有 job
         make install  # 确保 libz.a 安装
         cd ..
 
-    - name: Build OpenSSL (static)  # 静态构建 OpenSSL
+    - name: Build OpenSSL (static)  # 静态构建 OpenSSL（buster 专用 1.1.1w）
       run: |
-        OPENSSL_VERSION=3.0.15
+        OPENSSL_VERSION=1.1.1w
         wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
@@ -76,14 +76,15 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
+        # 设置环境变量 LDFLAGS 和 CC，避免 make 解析错误
         export CC="gcc"  # 针对 buster，确保使用系统 gcc
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS，避免变量解析错误
-             -j$(nproc --ignore=2)  # 减速并行
+             -j$(nproc --ignore=2)  # 减速并行，LDFLAGS 通过环境传递
         cd ..
 
     - name: Prepare and upload binary artifact  # 上传二进制 artifact
@@ -149,13 +150,13 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
         export CC="gcc"
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS
-             -j$(nproc --ignore=2)
+             -j$(nproc --ignore=2)  # LDFLAGS 通过环境传递
         cd ..
 
     - name: Prepare and upload binary artifact  # 上传二进制 artifact
@@ -221,13 +222,13 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
         export CC="gcc"
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS
-             -j$(nproc --ignore=2)
+             -j$(nproc --ignore=2)  # LDFLAGS 通过环境传递
         cd ..
 
     - name: Prepare and upload binary artifact  # 上传二进制 artifact
@@ -293,13 +294,13 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
         export CC="gcc"
+        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS
-             -j$(nproc --ignore=2)
+             -j$(nproc --ignore=2)  # LDFLAGS 通过环境传递
         cd ..
 
     - name: Prepare and upload binary artifact  # 上传二进制 artifact
