@@ -8,7 +8,7 @@ on:  # 触发条件
   release:
     types: [ created ]
 
-jobs:  # 新增：jobs 顶级键，包含所有 job
+jobs:  # jobs 顶级键，包含所有 job
   # buster job：Debian 10
   build-buster:
     runs-on: ubuntu-latest
@@ -54,9 +54,9 @@ jobs:  # 新增：jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared no-doc no-html  # no-doc no-html，跳过文档生成，避免 perl 慢构建
+        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared 静态构建
         make -j$(nproc --ignore=2)  # 减速并行，留 2 核
-        make install  # 确保 libssl.a 和 libcrypto.a 安装
+        make install_sw  # 改为 install_sw，跳过文档安装，避免 perl 脚本
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -128,9 +128,9 @@ jobs:  # 新增：jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared no-doc no-html
+        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared
         make -j$(nproc --ignore=2)
-        make install
+        make install_sw  # 改为 install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -201,9 +201,9 @@ jobs:  # 新增：jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared no-doc no-html
+        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared
         make -j$(nproc --ignore=2)
-        make install
+        make install_sw  # 改为 install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -274,9 +274,9 @@ jobs:  # 新增：jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared no-doc no-html
+        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared
         make -j$(nproc --ignore=2)
-        make install
+        make install_sw  # 改为 install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
