@@ -54,9 +54,9 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared 静态构建
+        ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared 静态构建
         make -j$(nproc --ignore=2)  # 减速并行，留 2 核
-        make install_sw  # 改为 install_sw，跳过文档安装，避免 perl 脚本
+        make install_sw  # install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -76,15 +76,13 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
-        # 设置环境变量 LDFLAGS，避免 make 解析错误
-        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         export CC="gcc"  # 针对 buster，确保使用系统 gcc
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="$LDFLAGS" \  # 通过环境传递
+             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS，避免变量解析错误
              -j$(nproc --ignore=2)  # 减速并行
         cd ..
 
@@ -128,9 +126,9 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared
+        ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
-        make install_sw  # 改为 install_sw，跳过文档安装
+        make install_sw  # install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -150,14 +148,13 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
-        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         export CC="gcc"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="$LDFLAGS" \
+             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS
              -j$(nproc --ignore=2)
         cd ..
 
@@ -201,9 +198,9 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared
+        ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
-        make install_sw  # 改为 install_sw，跳过文档安装
+        make install_sw  # install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -223,14 +220,13 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
-        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         export CC="gcc"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="$LDFLAGS" \
+             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS
              -j$(nproc --ignore=2)
         cd ..
 
@@ -274,9 +270,9 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
         mkdir -p /opt/openssl-static
-        ./config --prefix=/opt/openssl-static no-shared  # 移除 no-doc no-html，仅 no-shared
+        ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
-        make install_sw  # 改为 install_sw，跳过文档安装
+        make install_sw  # install_sw，跳过文档安装
         cd ..
 
     - name: Build PCRE2 (static)  # 静态构建 PCRE2
@@ -296,14 +292,13 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
-        export LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"
         export CC="gcc"
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             LDFLAGS="$LDFLAGS" \
+             LDFLAGS="-L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib" \  # 直接指定 LDFLAGS
              -j$(nproc --ignore=2)
         cd ..
 
