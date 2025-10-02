@@ -1,0 +1,81 @@
+name: Build Static HAProxy for Debian
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian: [buster, bullseye, bookworm, trixie]  # Debian 10-13 对应版本
+    container: debian:${{ matrix.debian }}  # 使用对应 Debian 镜像作为构建环境
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        apt-get update
+        apt-get install -y build-essential wget make tar perl
+
+    - name: Build Zlib (static)
+      run: |
+        ZLIB_VERSION=1.3.1
+        wget https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+        tar xzf zlib-${ZLIB_VERSION}.tar.gz
+        cd zlib-${ZLIB_VERSION}
+        ./configure --prefix=/opt/zlib-static --static
+        make -j$(nproc)
+        make install
+        cd ..
+
+    - name: Build OpenSSL (static)
+      run: |
+        OPENSSL_VERSION=3.0.15
+        wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+        tar xzf openssl-${OPENSSL_VERSION}.tar.gz
+        cd openssl-${OPENSSL_VERSION}
+        mkdir -p /opt/openssl-static
+        ./config --prefix=/opt/openssl-static no-shared
+        make -j$(nproc)
+        make install_sw
+        cd ..
+
+    - name: Build PCRE2 (static)
+      run: |
+        PCRE2_VERSION=10.45
+        wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz
+        tar xzf pcre2-${PCRE2_VERSION}.tar.gz
+        cd pcre2-${PCRE2_VERSION}
+        ./configure --prefix=/opt/pcre2-static --disable-shared --enable-static --enable-jit --enable-unicode
+        make -j$(nproc)
+        make install
+        cd ..
+
+    - name: Build HAProxy (static)
+      run: |
+        HAPROXY_VERSION=3.2.1
+        wget https://www.haproxy.org/download/3.2/src/haproxy-${HAPROXY_VERSION}.tar.gz
+        tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
+        cd haproxy-${HAPROXY_VERSION}
+        make TARGET=linux-glibc \
+             USE_OPENSSL=1 USE_STATIC_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
+             USE_ZLIB=1 USE_STATIC_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
+             USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
+             USE_THREAD=1 \
+             -j$(nproc)
+        cd ..
+
+    - name: Prepare and upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: haproxy-static-${{ matrix.debian }}
+        path: haproxy-3.2.1/haproxy
+        retention-days: 30
