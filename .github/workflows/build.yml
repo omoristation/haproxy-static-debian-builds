@@ -20,6 +20,22 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 新增步骤：为 Debian buster 配置归档仓库（仅针对 buster 生效）
+    - name: Configure archive repositories for buster
+      if: matrix.debian == 'buster'
+      run: |
+        # 更新 sources.list 为归档源
+        cat > /etc/apt/sources.list << EOF
+        deb http://archive.debian.org/debian/ buster main contrib non-free
+        deb-src http://archive.debian.org/debian/ buster main contrib non-free
+        deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+        deb-src http://archive.debian.org/debian-security buster/updates main contrib non-free
+        EOF
+        # 忽略 Release 文件的有效期检查（归档源不更新）
+        echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
+        # 更新 GPG 密钥（可选，但推荐避免签名警告）
+        apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true
+
     - name: Install build dependencies
       run: |
         apt-get update
