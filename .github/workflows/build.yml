@@ -126,7 +126,7 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
-        mkdir -p /opt/openssl-static
+        mkdir -p /opt/openssl-static/lib  # 新增：创建 lib 子目录
         ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
         make install  # 完整 install
@@ -211,7 +211,7 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
-        mkdir -p /opt/openssl-static
+        mkdir -p /opt/openssl-static/lib  # 新增：创建 lib 子目录
         ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
         make install  # 完整 install
@@ -296,7 +296,7 @@ jobs:  # jobs 顶级键，包含所有 job
         wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
         tar xzf openssl-${OPENSSL_VERSION}.tar.gz
         cd openssl-${OPENSSL_VERSION}
-        mkdir -p /opt/openssl-static
+        mkdir -p /opt/openssl-static/lib  # 新增：创建 lib 子目录
         ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
         make install  # 完整 install
