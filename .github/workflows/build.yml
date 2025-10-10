@@ -13,7 +13,7 @@ jobs:  # jobs 顶级键，包含所有 job
   build-buster:
     runs-on: ubuntu-latest
     container: debian:buster  # 使用 Debian 10 镜像
-    if: false  # 新增：临时禁用，始终跳过以节省资源
+    if: false  # 临时禁用，始终跳过以节省资源
     steps:
     - name: Checkout repository  # 检出仓库代码
       uses: actions/checkout@v4
@@ -95,11 +95,10 @@ jobs:  # jobs 顶级键，包含所有 job
         path: haproxy-3.2.1/haproxy
         retention-days: 30
 
-  # bullseye job：Debian 11，依赖 buster（但 buster 禁用后独立运行）
+  # bullseye job：Debian 11（独立运行，无依赖）
   build-bullseye:
     runs-on: ubuntu-latest
-    needs: build-buster  # 保持依赖，但 buster 跳过后 bullseye 仍运行
-    if: needs.build-buster.result == 'success' || needs.build-buster.result == 'skipped'  # 新增：buster 跳过时也运行 bullseye
+    # 移除 needs 和 if，独立运行
     container: debian:bullseye  # 使用 Debian 11 镜像
     steps:
     - name: Checkout repository  # 检出仓库代码
@@ -130,10 +129,13 @@ jobs:  # jobs 顶级键，包含所有 job
         mkdir -p /opt/openssl-static
         ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
-        make install  # 改为完整 install，确保静态库 .a 文件安装
+        make install  # 完整 install，确保 .a 文件
+        # 新增：手动确保静态库复制（no-shared 模式下 .a 在源目录）
+        cp libssl.a /opt/openssl-static/lib/
+        cp libcrypto.a /opt/openssl-static/lib/
         cd ..
 
-    - name: Verify OpenSSL libraries  # 新增：验证 OpenSSL 静态库存在
+    - name: Verify OpenSSL libraries  # 验证 OpenSSL 静态库存在
       run: |
         echo "检查 OpenSSL 静态库文件："
         ls -la /opt/openssl-static/lib/libssl* /opt/openssl-static/lib/libcrypto*
@@ -162,13 +164,13 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
         export CC="gcc"
-        export LDFLAGS="-static -L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"  # 新增 -static 强制静态链接
+        export LDFLAGS="-static -L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib -l:libssl.a -l:libcrypto.a"  # 精确指定静态库文件名
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
              USE_PCRE2=1 USE_STATIC_PCRE2=1 PCRE2_INC=/opt/pcre2-static/include PCRE2_LIB=/opt/pcre2-static/lib \
              USE_THREAD=1 \
-             -j$(nproc --ignore=2)  # LDFLAGS 通过环境传递
+             -j$(nproc --ignore=2)
         cd ..
 
     - name: Prepare and upload binary artifact  # 上传二进制 artifact
@@ -178,11 +180,10 @@ jobs:  # jobs 顶级键，包含所有 job
         path: haproxy-3.2.1/haproxy
         retention-days: 30
 
-  # bookworm job：Debian 12，依赖 bullseye 成功
+  # bookworm job：Debian 12（独立运行，无依赖）
   build-bookworm:
     runs-on: ubuntu-latest
-    needs: build-bullseye  # 依赖 bullseye
-    if: needs.build-bullseye.result == 'success'  # 仅前一个成功时执行
+    # 移除 needs 和 if，独立运行
     container: debian:bookworm  # 使用 Debian 12 镜像
     steps:
     - name: Checkout repository  # 检出仓库代码
@@ -213,10 +214,13 @@ jobs:  # jobs 顶级键，包含所有 job
         mkdir -p /opt/openssl-static
         ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
-        make install  # 改为完整 install
+        make install  # 完整 install
+        # 手动确保静态库复制
+        cp libssl.a /opt/openssl-static/lib/
+        cp libcrypto.a /opt/openssl-static/lib/
         cd ..
 
-    - name: Verify OpenSSL libraries  # 新增：验证 OpenSSL 静态库存在
+    - name: Verify OpenSSL libraries  # 验证 OpenSSL 静态库存在
       run: |
         echo "检查 OpenSSL 静态库文件："
         ls -la /opt/openssl-static/lib/libssl* /opt/openssl-static/lib/libcrypto*
@@ -245,7 +249,7 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
         export CC="gcc"
-        export LDFLAGS="-static -L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"  # 新增 -static
+        export LDFLAGS="-static -L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib -l:libssl.a -l:libcrypto.a"  # 精确指定静态库
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
@@ -261,11 +265,10 @@ jobs:  # jobs 顶级键，包含所有 job
         path: haproxy-3.2.1/haproxy
         retention-days: 30
 
-  # trixie job：Debian 13，依赖 bookworm 成功
+  # trixie job：Debian 13（独立运行，无依赖）
   build-trixie:
     runs-on: ubuntu-latest
-    needs: build-bookworm  # 依赖 bookworm
-    if: needs.build-bookworm.result == 'success'  # 仅前一个成功时执行
+    # 移除 needs 和 if，独立运行
     container: debian:trixie  # 使用 Debian 13 镜像
     steps:
     - name: Checkout repository  # 检出仓库代码
@@ -296,10 +299,13 @@ jobs:  # jobs 顶级键，包含所有 job
         mkdir -p /opt/openssl-static
         ./config --prefix=/opt/openssl-static no-shared  # 仅 no-shared
         make -j$(nproc --ignore=2)
-        make install  # 改为完整 install
+        make install  # 完整 install
+        # 手动确保静态库复制
+        cp libssl.a /opt/openssl-static/lib/
+        cp libcrypto.a /opt/openssl-static/lib/
         cd ..
 
-    - name: Verify OpenSSL libraries  # 新增：验证 OpenSSL 静态库存在
+    - name: Verify OpenSSL libraries  # 验证 OpenSSL 静态库存在
       run: |
         echo "检查 OpenSSL 静态库文件："
         ls -la /opt/openssl-static/lib/libssl* /opt/openssl-static/lib/libcrypto*
@@ -328,7 +334,7 @@ jobs:  # jobs 顶级键，包含所有 job
         tar xzf haproxy-${HAPROXY_VERSION}.tar.gz
         cd haproxy-${HAPROXY_VERSION}
         export CC="gcc"
-        export LDFLAGS="-static -L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib"  # 新增 -static
+        export LDFLAGS="-static -L/opt/openssl-static/lib -L/opt/zlib-static/lib -L/opt/pcre2-static/lib -l:libssl.a -l:libcrypto.a"  # 精确指定静态库
         make TARGET=linux-glibc \
              USE_OPENSSL=1 SSL_INC=/opt/openssl-static/include SSL_LIB=/opt/openssl-static/lib \
              USE_ZLIB=1 ZLIB_INC=/opt/zlib-static/include ZLIB_LIB=/opt/zlib-static/lib \
